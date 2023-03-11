@@ -1,0 +1,29 @@
+{
+    "name": "Tauri Android",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "args": {
+            "VARIANT": "ubuntu-22.04",
+            "NDK_VERSION": "25.2.9519653",
+            "ANDROID_PLATFORM_VERSION": "31",
+            "ANDROID_BUILD_TOOLS_VERSION": "33.0.0",
+            "ANDROID_SDK_TOOLS_VERSION": "9477386",
+            "EXTRA_DEPENDENCIES": ""
+        }
+    },
+    "settings": {},
+    "extensions": [
+        "rust-lang.rust-analyzer",
+        "tauri-apps.tauri-vscode"
+    ],
+    // Use 'forwardPorts' to make a list of ports inside the container available locally.
+    // "forwardPorts": [],
+    // Use 'postCreateCommand' to run commands after the container is created.
+    "postCreateCommand": "pnpm i",
+    "remoteUser": "vscode",
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "lts"
+        }
+    }
+}
