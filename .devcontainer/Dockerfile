@@ -1,11 +1,23 @@
 ARG VARIANT="jammy"
-FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT} AS android_sdk
-WORKDIR /android_sdk
 
 ARG ANDROID_SDK_TOOLS_VERSION="8512546"
 ARG ANDROID_PLATFORM_VERSION="31"
 ARG ANDROID_BUILD_TOOLS_VERSION="33.0.0"
 ARG NDK_VERSION="25.0.8775105"
+
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+ARG DEPENDENCIES="build-essential curl libappindicator3-dev libgtk-3-dev librsvg2-dev libssl-dev libwebkit2gtk-4.1-dev wget"
+ARG EXTRA_DEPENDENCIES=""
+
+FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT} AS android_sdk
+WORKDIR /android_sdk
+
+ARG ANDROID_SDK_TOOLS_VERSION
+ARG ANDROID_PLATFORM_VERSION
+ARG ANDROID_BUILD_TOOLS_VERSION
+ARG NDK_VERSION
 
 ENV ANDROID_HOME="/android-sdk"
 ENV ANDROID_SDK_ROOT="$ANDROID_HOME"
@@ -30,16 +42,22 @@ RUN curl -C - --output android-sdk-tools.zip "https://dl.google.com/android/repo
     && sdkmanager "ndk;${NDK_VERSION}" \
     && sdkmanager "cmdline-tools;latest"
 
+ARG VARIANT
 FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT}
+
+ARG ANDROID_SDK_TOOLS_VERSION
+ARG ANDROID_PLATFORM_VERSION
+ARG ANDROID_BUILD_TOOLS_VERSION
+ARG NDK_VERSION
+
+ARG USERNAME
+ARG USER_UID
+ARG USER_GID
+ARG DEPENDENCIES
+ARG EXTRA_DEPENDENCIES
 
 #Locale
 ENV LANG C.UTF-8
-
-ARG USERNAME=vscode
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
-ARG DEPENDENCIES="build-essential curl libappindicator3-dev libgtk-3-dev librsvg2-dev libssl-dev libwebkit2gtk-4.0-dev wget"
-ARG EXTRA_DEPENDENCIES=""
 
 ENV ANDROID_HOME="/home/${USERNAME}/android-sdk"
 ENV ANDROID_SDK_ROOT="$ANDROID_HOME"
