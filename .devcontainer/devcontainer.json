@@ -3,12 +3,12 @@
     "build": {
         "dockerfile": "Dockerfile",
         "args": {
-            "VARIANT": "ubuntu-22.04",
-            "NDK_VERSION": "25.2.9519653",
-            "ANDROID_PLATFORM_VERSION": "31",
-            "ANDROID_BUILD_TOOLS_VERSION": "33.0.0",
-            "ANDROID_SDK_TOOLS_VERSION": "9477386",
-            "EXTRA_DEPENDENCIES": ""
+            // "VARIANT": "ubuntu-22.04",
+            // "NDK_VERSION": "25.2.9519653",
+            // "ANDROID_PLATFORM_VERSION": "31",
+            // "ANDROID_BUILD_TOOLS_VERSION": "33.0.0",
+            // "ANDROID_SDK_TOOLS_VERSION": "9477386",
+            // "EXTRA_DEPENDENCIES": ""
         }
     },
     "settings": {},
