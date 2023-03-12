@@ -1,5 +1,8 @@
 {
     "name": "Tauri Android",
+    "runArgs": [
+        "--network=host"
+    ],
     "build": {
         "dockerfile": "Dockerfile",
         "args": {
