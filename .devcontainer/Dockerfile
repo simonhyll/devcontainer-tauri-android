@@ -1,32 +1,46 @@
+# Arguments for setting up the SDK. Can be overridden in devcontainer.json but shouldn't be required
 ARG ANDROID_SDK_TOOLS_VERSION="9477386"
 ARG ANDROID_PLATFORM_VERSION="33"
 ARG ANDROID_BUILD_TOOLS_VERSION="30.0.3"
 ARG NDK_VERSION="25.0.8775105"
 
+# Arguments related to setting up a non-root user for the container
 ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
+
+# Arguments for installing dependencies where DEPENDENCIES are Tauri dependencies and EXTRA_DEPENDENCIES is empty so that users can add more without interfering with Tauri
 ARG DEPENDENCIES="build-essential curl libappindicator3-dev libgtk-3-dev librsvg2-dev libssl-dev libwebkit2gtk-4.1-dev wget"
 ARG EXTRA_DEPENDENCIES=""
 
+# Argument for which image version to use
 ARG VARIANT="ubuntu-22.04"
+
+######################################
+## Android SDK
+## Downloading and installing
+######################################
 FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT} AS android_sdk
 WORKDIR /android_sdk
 
+# Arguments are consumed by the first FROM they encounter, so we need to just explicitly tell Docker we need to use these again and again
 ARG ANDROID_SDK_TOOLS_VERSION
 ARG ANDROID_PLATFORM_VERSION
 ARG ANDROID_BUILD_TOOLS_VERSION
 ARG NDK_VERSION
 
+# Environment variables inside the android_sdk step to ensure the SDK is built properly
 ENV ANDROID_HOME="/android_sdk"
 ENV ANDROID_SDK_ROOT="$ANDROID_HOME"
 ENV NDK_HOME="${ANDROID_HOME}/ndk/${NDK_VERSION}"
 ENV PATH=${PATH}:/android_sdk/cmdline-tools/latest/bin
 ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 
+# These are the only dependencies required to install the SDK
 RUN sudo apt update \
     && sudo apt install -y --no-install-recommends curl default-jdk
 
+# Set up the SDK
 RUN curl -C - --output android-sdk-tools.zip "https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_SDK_TOOLS_VERSION}_latest.zip" \
     && mkdir -p /android_sdk/cmdline-tools/latest/ \
     && unzip -q android-sdk-tools.zip -d /android_sdk/cmdline-tools/latest/ \
@@ -41,24 +55,41 @@ RUN curl -C - --output android-sdk-tools.zip "https://dl.google.com/android/repo
     && sdkmanager "ndk;${NDK_VERSION}" \
     && sdkmanager "cmdline-tools;latest"
 
+# As an added bonus we set up a gradle.properties file that enhances Gradle performance
+RUN echo "org.gradle.daemon=true" >> "/gradle.properties" \
+    && echo "org.gradle.parallel=true" >> "/gradle.properties"
+
+######################################
+## Mold
+## Speeds up compilation
+######################################
 ARG VARIANT
 FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT} as mold
 WORKDIR /mold
+
+# Install dependencies
 RUN apt update && \
     apt install -yq build-essential git clang g++ llvm \
     libstdc++-10-dev zlib1g-dev libssl-dev cmake file
+# Clone mold 1.4.2, build it then install it
 RUN git clone https://github.com/rui314/mold.git && \
     cd mold && \
     git checkout --quiet v1.4.2 && \
     make -j$(nproc) CXX=clang++ && \
     make install
+# Set up a config.toml file that makes Cargo use clang and mold
 RUN echo "[target.x86_64-unknown-linux-gnu]" >> /config.toml \
     && echo "linker = \"clang\"" >> /config.toml \
     && echo "rustflags = [\"-C\", \"link-arg=-fuse-ld=/usr/local/bin/mold\"]" >> /config.toml
 
+######################################
+## The finalized container
+## Puts it all together
+######################################
 ARG VARIANT
 FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT}
 
+# We require these arguments in this image so we have to fetch them anew
 ARG ANDROID_SDK_TOOLS_VERSION
 ARG ANDROID_PLATFORM_VERSION
 ARG ANDROID_BUILD_TOOLS_VERSION
@@ -70,15 +101,14 @@ ARG USER_GID
 ARG DEPENDENCIES
 ARG EXTRA_DEPENDENCIES
 
-#Locale
-ENV LANG C.UTF-8
-
+# Set up the required Android environment variables
 ENV ANDROID_HOME="/home/${USERNAME}/android_sdk"
 ENV ANDROID_SDK_ROOT="$ANDROID_HOME"
 ENV NDK_HOME="${ANDROID_HOME}/ndk/${NDK_VERSION}"
 ENV PATH=${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/emulator
 ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 
+# Upgrade the system, install SDK dependencies, install mold dependencies, install Tauri dependencies
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt update \
     && apt upgrade -y \
@@ -87,23 +117,35 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     && apt install -y clang libssl-dev \
     && apt install -y $DEPENDENCIES $EXTRA_DEPENDENCIES
 
+# Clean up to reduce container size
 RUN apt autoremove -y \
     && apt clean -y \
     && rm -rf /var/lib/apt/lists/*
 
+# Ensure the user is a sudo user in case the developer needs to e.g. run apt install later
 RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL >/etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
+# Run the rest of the commands as the non-root user
 USER $USERNAME
+
+# Install rustup
 RUN curl https://sh.rustup.rs -sSf | \
     sh -s -- --default-toolchain stable -y
+
+# Ensure the Cargo env gets loaded
 RUN echo "source /home/${USERNAME}/.cargo/env" >>/home/${USERNAME}/.bashrc
+
+# Add Cargo bin to the PATH, primarily to ensure the next command can find rustup
 ENV PATH="/home/${USERNAME}/.cargo/bin:$PATH"
+
+# Update Rust and install required Android targets
 RUN rustup update && rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 
+# Copy files from android_sdk
+COPY --from=android_sdk --chown=${USERNAME}:${USERNAME} /gradle.properties /home/${USERNAME}/.gradle/gradle.properties
 COPY --from=android_sdk --chown=${USERNAME}:${USERNAME} /android_sdk /home/${USERNAME}/android_sdk
 
+# Copy files from mold
 COPY --from=mold --chown=${USERNAME}:${USERNAME} /usr/local/bin/mold /usr/local/bin/mold
 COPY --from=mold --chown=${USERNAME}:${USERNAME} /config.toml /home/${USERNAME}/.cargo/config.toml
-
-USER $USERNAME

@@ -1,40 +1,40 @@
 [build]
 target = 'x86_64-unknown-linux-gnu'
 [target.aarch64-linux-android]
-linker = '/home/vscode/android-sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang'
+linker = '/home/vscode/android_sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang'
 rustflags = [
     '-L',
-    '/workspaces/android-devcontainer/tauri-app/src-tauri/.cargo',
+    '/workspaces/tauri-devcontainer-android/src-tauri/.cargo',
     '-Clink-arg=-landroid',
     '-Clink-arg=-llog',
     '-Clink-arg=-lOpenSLES',
 ]
 
 [target.armv7-linux-androideabi]
-linker = '/home/vscode/android-sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang'
+linker = '/home/vscode/android_sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang'
 rustflags = [
     '-L',
-    '/workspaces/android-devcontainer/tauri-app/src-tauri/.cargo',
+    '/workspaces/tauri-devcontainer-android/src-tauri/.cargo',
     '-Clink-arg=-landroid',
     '-Clink-arg=-llog',
     '-Clink-arg=-lOpenSLES',
 ]
 
 [target.i686-linux-android]
-linker = '/home/vscode/android-sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android24-clang'
+linker = '/home/vscode/android_sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android24-clang'
 rustflags = [
     '-L',
-    '/workspaces/android-devcontainer/tauri-app/src-tauri/.cargo',
+    '/workspaces/tauri-devcontainer-android/src-tauri/.cargo',
     '-Clink-arg=-landroid',
     '-Clink-arg=-llog',
     '-Clink-arg=-lOpenSLES',
 ]
 
 [target.x86_64-linux-android]
-linker = '/home/vscode/android-sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang'
+linker = '/home/vscode/android_sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang'
 rustflags = [
     '-L',
-    '/workspaces/android-devcontainer/tauri-app/src-tauri/.cargo',
+    '/workspaces/tauri-devcontainer-android/src-tauri/.cargo',
     '-Clink-arg=-landroid',
     '-Clink-arg=-llog',
     '-Clink-arg=-lOpenSLES',
