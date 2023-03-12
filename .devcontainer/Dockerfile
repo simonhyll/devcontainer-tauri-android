@@ -53,7 +53,7 @@ RUN git clone https://github.com/rui314/mold.git && \
     make -j$(nproc) CXX=clang++ && \
     make install
 RUN echo "[target.x86_64-unknown-linux-gnu]" >> /config.toml \
-    && echo "linker = \"clang\"" >> xconfig.toml \
+    && echo "linker = \"clang\"" >> /config.toml \
     && echo "rustflags = [\"-C\", \"link-arg=-fuse-ld=/usr/local/bin/mold\"]" >> /config.toml
 
 ARG VARIANT
