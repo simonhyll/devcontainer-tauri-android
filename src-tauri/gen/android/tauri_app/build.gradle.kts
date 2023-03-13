@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 buildscript {
     repositories {
@@ -23,3 +25,14 @@ tasks.register("clean").configure {
     delete("build")
 }
 
+// https://kotlinlang.org/docs/gradle-configure-project.html#gradle-java-toolchains-support
+tasks.withType(JavaCompile::class.java) {
+    sourceCompatibility = "11"
+    targetCompatibility = "11"
+}
+
+tasks.withType(KotlinCompile::class.java) {
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+}

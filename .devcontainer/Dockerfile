@@ -10,8 +10,8 @@ ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
 # Arguments for installing dependencies where DEPENDENCIES are Tauri dependencies and EXTRA_DEPENDENCIES is empty so that users can add more without interfering with Tauri
-ARG DEPENDENCIES="build-essential curl libappindicator3-dev libgtk-3-dev librsvg2-dev libssl-dev libwebkit2gtk-4.1-dev wget"
-ARG EXTRA_DEPENDENCIES=""
+ARG DEPENDENCIES="build-essential curl libappindicator3-dev libgtk-3-dev librsvg2-dev libssl-dev libwebkit2gtk-4.1-dev wget libappimage-dev file"
+ARG EXTRA_DEPENDENCIES="socat"
 
 # Argument for which image version to use
 ARG VARIANT="ubuntu-22.04"
@@ -38,7 +38,7 @@ ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 
 # These are the only dependencies required to install the SDK
 RUN sudo apt update \
-    && sudo apt install -y --no-install-recommends curl default-jdk
+    && sudo apt install -yq --no-install-recommends curl default-jdk
 
 # Set up the SDK
 RUN curl -C - --output android-sdk-tools.zip "https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_SDK_TOOLS_VERSION}_latest.zip" \
@@ -68,19 +68,49 @@ FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT} as mold
 WORKDIR /mold
 
 # Install dependencies
-RUN apt update && \
-    apt install -yq build-essential git clang g++ llvm \
+RUN apt update \
+    && apt install -yq build-essential git clang g++ llvm \
     libstdc++-10-dev zlib1g-dev libssl-dev cmake file
+
 # Clone mold 1.4.2, build it then install it
 RUN git clone https://github.com/rui314/mold.git && \
     cd mold && \
     git checkout --quiet v1.4.2 && \
     make -j$(nproc) CXX=clang++ && \
     make install
+
 # Set up a config.toml file that makes Cargo use clang and mold
 RUN echo "[target.x86_64-unknown-linux-gnu]" >> /config.toml \
     && echo "linker = \"clang\"" >> /config.toml \
     && echo "rustflags = [\"-C\", \"link-arg=-fuse-ld=/usr/local/bin/mold\"]" >> /config.toml
+
+
+######################################
+## Tauri CLI
+## Temporary workaround
+######################################
+ARG VARIANT
+FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT} as tauri-cli
+WORKDIR /build
+
+# Install dependencies
+RUN apt update \
+    && apt install -yq build-essential git pkg-config libssl-dev clang
+
+# Install rustup
+RUN curl https://sh.rustup.rs -sSf | \
+    sh -s -- --default-toolchain stable -y
+
+# Add Cargo bin to the PATH
+ENV PATH="/home/${USERNAME}/.cargo/bin:$PATH"
+
+# Build and install the Tauri CLI
+RUN . ~/.cargo/env \
+    && git clone https://github.com/tauri-apps/tauri \
+    && cd tauri/tooling/cli \
+    && git checkout next \
+    && cargo build \
+    && cp target/debug/cargo-tauri /cargo-tauri
 
 ######################################
 ## The finalized container
@@ -111,11 +141,11 @@ ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 # Upgrade the system, install SDK dependencies, install mold dependencies, install Tauri dependencies
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt update \
-    && apt upgrade -y \
-    && apt install -y --no-install-recommends sudo default-jdk \
+    && apt upgrade -yq \
+    && apt install -yq --no-install-recommends sudo default-jdk \
     wget curl git xz-utils zip unzip --no-install-recommends \
-    && apt install -y clang libssl-dev \
-    && apt install -y $DEPENDENCIES $EXTRA_DEPENDENCIES
+    && apt install -yq clang libssl-dev pkg-config git git-lfs \
+    && apt install -yq $DEPENDENCIES $EXTRA_DEPENDENCIES
 
 # Clean up to reduce container size
 RUN apt autoremove -y \
@@ -123,7 +153,7 @@ RUN apt autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Ensure the user is a sudo user in case the developer needs to e.g. run apt install later
-RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL >/etc/sudoers.d/$USERNAME \
+RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
 # Run the rest of the commands as the non-root user
@@ -149,3 +179,6 @@ COPY --from=android_sdk --chown=${USERNAME}:${USERNAME} /android_sdk /home/${USE
 # Copy files from mold
 COPY --from=mold --chown=${USERNAME}:${USERNAME} /usr/local/bin/mold /usr/local/bin/mold
 COPY --from=mold --chown=${USERNAME}:${USERNAME} /config.toml /home/${USERNAME}/.cargo/config.toml
+
+# Install the Tauri CLI
+COPY --from=tauri-cli --chown=${USERNAME}:${USERNAME} /cargo-tauri /usr/local/bin/cargo-tauri
