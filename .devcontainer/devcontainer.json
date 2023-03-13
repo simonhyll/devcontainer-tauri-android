@@ -1,7 +1,8 @@
 {
     "name": "Tauri Android",
     "runArgs": [
-        "--network=host" // Without this the Tauri CLI will fail because it can't find a valid IP, and adb won't find your devices
+        "--network=host", // Without this the Tauri CLI will fail because it can't find a valid IP, and adb won't find your devices
+        "--device=/dev/kvm"
     ],
     "build": {
         "dockerfile": "Dockerfile",

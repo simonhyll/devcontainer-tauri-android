@@ -1,6 +1,6 @@
 # Arguments for setting up the SDK. Can be overridden in devcontainer.json but shouldn't be required
 ARG ANDROID_SDK_TOOLS_VERSION="9477386"
-ARG ANDROID_PLATFORM_VERSION="33"
+ARG ANDROID_PLATFORM_VERSION="32"
 ARG ANDROID_BUILD_TOOLS_VERSION="30.0.3"
 ARG NDK_VERSION="25.0.8775105"
 
@@ -10,8 +10,8 @@ ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
 # Arguments for installing dependencies where DEPENDENCIES are Tauri dependencies and EXTRA_DEPENDENCIES is empty so that users can add more without interfering with Tauri
-ARG DEPENDENCIES="build-essential curl libappindicator3-dev libgtk-3-dev librsvg2-dev libssl-dev libwebkit2gtk-4.1-dev wget libappimage-dev file"
-ARG EXTRA_DEPENDENCIES="socat"
+ARG DEPENDENCIES="build-essential curl libappindicator3-dev libgtk-3-dev librsvg2-dev libssl-dev libwebkit2gtk-4.1-dev wget libappimage-dev file socat"
+ARG EXTRA_DEPENDENCIES=""
 
 # Argument for which image version to use
 ARG VARIANT="ubuntu-22.04"
@@ -53,7 +53,9 @@ RUN curl -C - --output android-sdk-tools.zip "https://dl.google.com/android/repo
     && sdkmanager "emulator" \
     && sdkmanager "platforms;android-${ANDROID_PLATFORM_VERSION}" "build-tools;$ANDROID_BUILD_TOOLS_VERSION" \
     && sdkmanager "ndk;${NDK_VERSION}" \
-    && sdkmanager "cmdline-tools;latest"
+    && sdkmanager "cmdline-tools;latest" \
+    && sdkmanager "system-images;android-${ANDROID_PLATFORM_VERSION};google_apis;x86_64" \
+    && avdmanager create avd -n dev -k "system-images;android-32;google_apis;x86_64"
 
 # As an added bonus we set up a gradle.properties file that enhances Gradle performance
 RUN echo "org.gradle.daemon=true" >> "/gradle.properties" \
@@ -138,13 +140,16 @@ ENV NDK_HOME="${ANDROID_HOME}/ndk/${NDK_VERSION}"
 ENV PATH=${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/emulator
 ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 
-# Upgrade the system, install SDK dependencies, install mold dependencies, install Tauri dependencies
+# Install dependencies
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt update \
     && apt upgrade -yq \
+    # Install general dependencies
     && apt install -yq --no-install-recommends sudo default-jdk \
-    wget curl git xz-utils zip unzip --no-install-recommends \
-    && apt install -yq clang libssl-dev pkg-config git git-lfs \
+    wget curl git xz-utils zip unzip \
+    # Install recommended dependencies
+    && apt install -yq clang libssl-dev pkg-config git git-lfs bash-completion \
+    # Install Tauri dependencies as well as general dependencies
     && apt install -yq $DEPENDENCIES $EXTRA_DEPENDENCIES
 
 # Clean up to reduce container size

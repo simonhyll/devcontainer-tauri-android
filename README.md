@@ -105,4 +105,29 @@ You can probably also just limit the nr of threads running at the same time in c
 
 Check the Dockerfile for more info on mold. It's basically just another linker that massively speeds up compilation times for your Rust projects. If you don't want it simply remove it from the Dockerfile. It doesn't affect the Android build (at least not currently, I miiiight look into compiling it for Android, but most likely won't).
 
-The reason I bring it up is to just make you aware of the fact that it's there. If you run `tauri build` you may actually compile it faster than on your host system! And yes, the container is fully set up to be capable of running `tauri build`, it just can't run anything graphical so you can't run `tauri dev`, but you can run unit tests and build the app, primarily for testing purposes but potentially also for cross-compilation purposes.
+The reason I bring it up is to just make you aware of the fact that it's there. If you run `tauri build` you may actually compile it faster than on your host system! And yes, the container is fully set up to be capable of running `tauri build`, in fact if you set it up correctly (at least on Windows, untested elsewhere) you can even run `tauri dev` and get it to display your app! See below.
+
+## Running the emulator inside the devcontainer
+
+Afaik you're gonna need to make sure you have `/dev/kvm` on your host system, on Windows you'll need to be using WSL to have that.
+
+```bash
+emulator -avd dev -no-audio -no-snapshot-load -gpu swiftshader_indirect -qemu -m 2048 -netdev user,id=mynet0,hostfwd=tcp::5555-:5555
+```
+
+## Running `tauri dev`
+
+### Windows
+
+1. Run `choco install vcxsrv`
+2. Run Xlaunch from the start menu, making sure you ✔️ the "Disable access control" option
+3. Inside the dev container, run `export DISPLAY=192.168.HOST.IP:0.0`
+4. Run `tauri dev`
+
+### Mac
+
+I don't own a Mac so not sure what the steps here are, nor am I able to even attempt it. Sponsor me with the value of a Mac and I'll definitely buy one and look into it! :D
+
+### Linux
+
+Haven't tested yet but it shouldn't be any more difficult than setting the DISPLAY value properly if you're on a system with an existing X11 server running (in my experience, most of them).
