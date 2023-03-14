@@ -54,8 +54,7 @@ RUN curl -C - --output android-sdk-tools.zip "https://dl.google.com/android/repo
     && sdkmanager "platforms;android-${ANDROID_PLATFORM_VERSION}" "build-tools;$ANDROID_BUILD_TOOLS_VERSION" \
     && sdkmanager "ndk;${NDK_VERSION}" \
     && sdkmanager "cmdline-tools;latest" \
-    && sdkmanager "system-images;android-${ANDROID_PLATFORM_VERSION};google_apis;x86_64" \
-    && avdmanager create avd -n dev -k "system-images;android-32;google_apis;x86_64"
+    && sdkmanager "system-images;android-${ANDROID_PLATFORM_VERSION};google_apis;x86_64"
 
 # As an added bonus we set up a gradle.properties file that enhances Gradle performance
 RUN echo "org.gradle.daemon=true" >> "/gradle.properties" \
@@ -180,6 +179,9 @@ RUN rustup update && rustup target add aarch64-linux-android armv7-linux-android
 # Copy files from android_sdk
 COPY --from=android_sdk --chown=${USERNAME}:${USERNAME} /gradle.properties /home/${USERNAME}/.gradle/gradle.properties
 COPY --from=android_sdk --chown=${USERNAME}:${USERNAME} /android_sdk /home/${USERNAME}/android_sdk
+
+# Create an emulator
+RUN echo no | avdmanager create avd -n dev -k "system-images;android-${ANDROID_PLATFORM_VERSION};google_apis;x86_64"
 
 # Copy files from mold
 COPY --from=mold --chown=${USERNAME}:${USERNAME} /usr/local/bin/mold /usr/local/bin/mold
