@@ -149,6 +149,11 @@ ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
+# Clean up to reduce container size
+RUN apt autoremove -y \
+    && apt clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # Run the rest of the commands as the non-root user
 USER $USERNAME
 
@@ -179,7 +184,3 @@ COPY --from=mold --chown=${USERNAME}:${USERNAME} /config.toml /home/${USERNAME}/
 # Install the Tauri CLI
 COPY --from=tauri-cli --chown=${USERNAME}:${USERNAME} /cargo-tauri /usr/local/bin/cargo-tauri
 
-# Clean up to reduce container size
-RUN apt autoremove -y \
-    && apt clean -y \
-    && rm -rf /var/lib/apt/lists/*
