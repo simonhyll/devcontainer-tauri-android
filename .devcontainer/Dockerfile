@@ -10,17 +10,37 @@ ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
 # Arguments for installing dependencies where DEPENDENCIES are Tauri dependencies and EXTRA_DEPENDENCIES is empty so that users can add more without interfering with Tauri
-ARG DEPENDENCIES="build-essential curl libappindicator3-dev libgtk-3-dev librsvg2-dev libssl-dev libwebkit2gtk-4.1-dev wget libappimage-dev file socat"
+ARG DEPENDENCIES="build-essential curl libappindicator3-dev libgtk-3-dev librsvg2-dev libssl-dev libwebkit2gtk-4.1-dev wget libappimage-dev"
 ARG EXTRA_DEPENDENCIES=""
 
 # Argument for which image version to use
-ARG VARIANT="ubuntu-22.04"
+ARG IMAGE="mcr.microsoft.com/vscode/devcontainers/base"
+ARG VARIANT="0-ubuntu-22.04"
+
+######################################
+## Base image
+## Installing dependencies
+######################################
+FROM ${IMAGE}:${VARIANT} AS base
+
+# Non-interactive frontend
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install dependencies
+RUN apt update \
+    && apt upgrade -yq \
+    # Install general dependencies
+    && apt install -yq --no-install-recommends sudo default-jdk \
+    wget curl git xz-utils zip unzip file socat clang libssl-dev \
+    pkg-config git git-lfs bash-completion llvm \
+    # Install Tauri dependencies as well as extra dependencies
+    && apt install -yq $DEPENDENCIES $EXTRA_DEPENDENCIES
 
 ######################################
 ## Android SDK
 ## Downloading and installing
 ######################################
-FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT} AS android_sdk
+FROM base as android_sdk
 WORKDIR /android_sdk
 
 # Arguments are consumed by the first FROM they encounter, so we need to just explicitly tell Docker we need to use these again and again
@@ -36,10 +56,6 @@ ENV NDK_HOME="${ANDROID_HOME}/ndk/${NDK_VERSION}"
 ENV PATH=${PATH}:/android_sdk/cmdline-tools/latest/bin
 ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 
-# These are the only dependencies required to install the SDK
-RUN sudo apt update \
-    && sudo apt install -yq --no-install-recommends curl default-jdk
-
 # Set up the SDK
 RUN curl -C - --output android-sdk-tools.zip "https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_SDK_TOOLS_VERSION}_latest.zip" \
     && mkdir -p /android_sdk/cmdline-tools/latest/ \
@@ -49,11 +65,11 @@ RUN curl -C - --output android-sdk-tools.zip "https://dl.google.com/android/repo
     && rm android-sdk-tools.zip \
     && yes | sdkmanager --licenses \
     && touch $HOME/.android/repositories.cfg \
+    && sdkmanager "cmdline-tools;latest" \
     && sdkmanager "platform-tools" \
     && sdkmanager "emulator" \
     && sdkmanager "platforms;android-${ANDROID_PLATFORM_VERSION}" "build-tools;$ANDROID_BUILD_TOOLS_VERSION" \
     && sdkmanager "ndk;${NDK_VERSION}" \
-    && sdkmanager "cmdline-tools;latest" \
     && sdkmanager "system-images;android-${ANDROID_PLATFORM_VERSION};google_apis;x86_64"
 
 # As an added bonus we set up a gradle.properties file that enhances Gradle performance
@@ -64,14 +80,11 @@ RUN echo "org.gradle.daemon=true" >> "/gradle.properties" \
 ## Mold
 ## Speeds up compilation
 ######################################
-ARG VARIANT
-FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT} as mold
+FROM base as mold
 WORKDIR /mold
 
 # Install dependencies
-RUN apt update \
-    && apt install -yq build-essential git clang g++ llvm \
-    libstdc++-10-dev zlib1g-dev libssl-dev cmake file
+RUN apt install -yq g++ libstdc++-10-dev zlib1g-dev cmake
 
 # Clone mold 1.4.2, build it then install it
 RUN git clone https://github.com/rui314/mold.git && \
@@ -85,18 +98,12 @@ RUN echo "[target.x86_64-unknown-linux-gnu]" >> /config.toml \
     && echo "linker = \"clang\"" >> /config.toml \
     && echo "rustflags = [\"-C\", \"link-arg=-fuse-ld=/usr/local/bin/mold\"]" >> /config.toml
 
-
 ######################################
 ## Tauri CLI
 ## Temporary workaround
 ######################################
-ARG VARIANT
-FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT} as tauri-cli
+FROM base as tauri-cli
 WORKDIR /build
-
-# Install dependencies
-RUN apt update \
-    && apt install -yq build-essential git pkg-config libssl-dev clang
 
 # Install rustup
 RUN curl https://sh.rustup.rs -sSf | \
@@ -117,8 +124,7 @@ RUN . ~/.cargo/env \
 ## The finalized container
 ## Puts it all together
 ######################################
-ARG VARIANT
-FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT}
+FROM base
 
 # We require these arguments in this image so we have to fetch them anew
 ARG ANDROID_SDK_TOOLS_VERSION
@@ -138,23 +144,6 @@ ENV ANDROID_SDK_ROOT="$ANDROID_HOME"
 ENV NDK_HOME="${ANDROID_HOME}/ndk/${NDK_VERSION}"
 ENV PATH=${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/emulator
 ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-
-# Install dependencies
-RUN export DEBIAN_FRONTEND=noninteractive \
-    && apt update \
-    && apt upgrade -yq \
-    # Install general dependencies
-    && apt install -yq --no-install-recommends sudo default-jdk \
-    wget curl git xz-utils zip unzip \
-    # Install recommended dependencies
-    && apt install -yq clang libssl-dev pkg-config git git-lfs bash-completion \
-    # Install Tauri dependencies as well as general dependencies
-    && apt install -yq $DEPENDENCIES $EXTRA_DEPENDENCIES
-
-# Clean up to reduce container size
-RUN apt autoremove -y \
-    && apt clean -y \
-    && rm -rf /var/lib/apt/lists/*
 
 # Ensure the user is a sudo user in case the developer needs to e.g. run apt install later
 RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
@@ -189,3 +178,8 @@ COPY --from=mold --chown=${USERNAME}:${USERNAME} /config.toml /home/${USERNAME}/
 
 # Install the Tauri CLI
 COPY --from=tauri-cli --chown=${USERNAME}:${USERNAME} /cargo-tauri /usr/local/bin/cargo-tauri
+
+# Clean up to reduce container size
+RUN apt autoremove -y \
+    && apt clean -y \
+    && rm -rf /var/lib/apt/lists/*
