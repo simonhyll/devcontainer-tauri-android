@@ -21,7 +21,11 @@ ARG VARIANT="0-ubuntu-22.04"
 ## Base image
 ## Installing dependencies
 ######################################
-FROM ${IMAGE}:${VARIANT} AS base
+FROM ${IMAGE}:${VARIANT} AS base_image
+
+# Redefine arguments
+ARG DEPENDENCIES
+ARG EXTRA_DEPENDENCIES
 
 # Non-interactive frontend
 ENV DEBIAN_FRONTEND=noninteractive
@@ -34,13 +38,13 @@ RUN apt update \
     wget curl git xz-utils zip unzip file socat clang libssl-dev \
     pkg-config git git-lfs bash-completion llvm \
     # Install Tauri dependencies as well as extra dependencies
-    && apt install -yq $DEPENDENCIES $EXTRA_DEPENDENCIES
+    && apt install -yq ${DEPENDENCIES} ${EXTRA_DEPENDENCIES}
 
 ######################################
 ## Android SDK
 ## Downloading and installing
 ######################################
-FROM base as android_sdk
+FROM base_image as android_sdk
 WORKDIR /android_sdk
 
 # Arguments are consumed by the first FROM they encounter, so we need to just explicitly tell Docker we need to use these again and again
@@ -80,7 +84,7 @@ RUN echo "org.gradle.daemon=true" >> "/gradle.properties" \
 ## Mold
 ## Speeds up compilation
 ######################################
-FROM base as mold
+FROM base_image as mold
 WORKDIR /mold
 
 # Install dependencies
@@ -102,7 +106,7 @@ RUN echo "[target.x86_64-unknown-linux-gnu]" >> /config.toml \
 ## Tauri CLI
 ## Temporary workaround
 ######################################
-FROM base as tauri-cli
+FROM base_image as tauri-cli
 WORKDIR /build
 
 # Install rustup
@@ -124,7 +128,7 @@ RUN . ~/.cargo/env \
 ## The finalized container
 ## Puts it all together
 ######################################
-FROM base
+FROM base_image
 
 # We require these arguments in this image so we have to fetch them anew
 ARG ANDROID_SDK_TOOLS_VERSION
@@ -135,8 +139,6 @@ ARG NDK_VERSION
 ARG USERNAME
 ARG USER_UID
 ARG USER_GID
-ARG DEPENDENCIES
-ARG EXTRA_DEPENDENCIES
 
 # Set up the required Android environment variables
 ENV ANDROID_HOME="/home/${USERNAME}/android_sdk"
@@ -150,8 +152,7 @@ RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
 # Clean up to reduce container size
-RUN apt autoremove -y \
-    && apt clean \
+RUN apt clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Run the rest of the commands as the non-root user
