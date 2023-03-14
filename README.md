@@ -36,11 +36,11 @@ This sounds more dire than it really is. If the Tauri CLI just has an option for
 
 1. [Set up Devcontainer development](https://code.visualstudio.com/docs/devcontainers/tutorial)
 2. Copy the `.devcontainer` folder from this repo to your own project and glance over the files once so I'm not doing something malicious to your project
-3. (Optional): If you trust me you can remove the Dockerfile and instead put `ghcr.io/simonhyll/devcontainer-tauri-android` in the `{"image":""}` part of `devcontainer.json` and remove the `{"build:{}}"` section entirely. This makes you download my prebuilt version instead. If you don't go with this option you'll be building it yourself and that can take quite a bit of time.
+3. (Optional): If you trust me you can remove the Dockerfile and instead put `ghcr.io/simonhyll/devcontainer-tauri-android` in the `{"image":""}` part of `devcontainer.json` and remove the `{"build:{}}"` section entirely. This makes you download my prebuilt version instead. If you don't go with this option you'll be building it yourself and that can take quite a bit of time. Note that this option means you can't customize the preinstalled SDK for your developers, they'll need to use the sdkmanager to update it every time they launch their setup if you don't use the same SDK version nr as I've built into it. If you just want something that I've verified works, go with my image. If you want something that you can customize, build it yourself. Just note that if every developer builds it every time you're not just wasting precious energy from the world, you're effectively giving every single developer you have a 5-15 minute break every time there's an update to the container. If you're a team, consider making a prebuilt version, just steal the workflow from this repo and you should be good to go with that
 
 And that's it really! If you just use `Ctrl + Shift + P` and `>Dev Containers: Open folder in Container...` you'll be up and running.
 
-Now you can either run the emulator inside the dev container, or run the emulator on your host and port forward adb. 
+Now you can either run the emulator inside the dev container, or run the emulator on your host and port forward adb.
 
 If you run the emulator inside the dev container everything is just plug and play, just launch it then run `cargo tauri android dev` and you'll see your app running on Android. There's performance issues, but you don't have to set up your host at all.
 
@@ -49,7 +49,7 @@ If you require better performance you'll have to check the ADB section below for
 ### Option 1: ADB port forwarding
 
 > NOTE!!! The frontend won't show up even if the app gets installed since the device can't connect to the containers IP. This is a known issue and will get fixed once the Tauri CLI gets patched to support setting the IP manually. Once that patch is out we can use port forwarding on the host side to expose the frontend running in the container to the device. Until
-> 
+>
 > Until this issue gets resolved I recommend using Option 2: Running the emulator inside the dev container
 
 This approach relies on port forwarding from the host system into the dev container. The benefit of this approach is that you get maximum performance, since the emulator/physical device is used, the container just handles building the APK that gets installed.
